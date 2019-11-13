@@ -206,6 +206,11 @@ static void teo_update(struct cpuidle_driver *drv, struct cpuidle_device *dev)
 		cpu_data->interval_idx = 0;
 }
 
+static bool teo_time_ok(unsigned int interval_us)
+{
+	return !tick_nohz_tick_stopped() || interval_us >= TICK_USEC;
+}
+
 /**
  * teo_find_shallower_state - Find shallower idle state matching given duration.
  * @drv: cpuidle driver containing state data.
@@ -307,8 +312,7 @@ static int teo_select(struct cpuidle_driver *drv, struct cpuidle_device *dev)
 			 * check if the current candidate state is not too
 			 * shallow for that role.
 			 */
-			if (!(tick_nohz_tick_stopped() &&
-			      drv->states[idx].target_residency < TICK_USEC)) {
+			if (teo_time_ok(drv->states[idx].target_residency)) {
 				prev_max_early_idx = max_early_idx;
 				early_hits = cpu_data->states[i].early_hits;
 				max_early_idx = idx;
@@ -334,8 +338,7 @@ static int teo_select(struct cpuidle_driver *drv, struct cpuidle_device *dev)
 		misses = cpu_data->states[i].misses;
 
 		if (early_hits < cpu_data->states[i].early_hits &&
-		    !(tick_nohz_tick_stopped() &&
-		      drv->states[i].target_residency < TICK_USEC)) {
+		    teo_time_ok(drv->states[i].target_residency)) {
 			prev_max_early_idx = max_early_idx;
 			early_hits = cpu_data->states[i].early_hits;
 			max_early_idx = i;
@@ -403,7 +406,7 @@ static int teo_select(struct cpuidle_driver *drv, struct cpuidle_device *dev)
 			 * Avoid spending too much time in an idle state that
 			 * would be too shallow.
 			 */
-			if (!(tick_nohz_tick_stopped() && avg_us < TICK_USEC)) {
+			if (teo_time_ok(avg_us)) {
 				duration_us = avg_us;
 				if (drv->states[idx].target_residency > avg_us)
 					idx = teo_find_shallower_state(drv, dev,
