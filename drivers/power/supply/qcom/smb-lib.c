@@ -605,7 +605,7 @@ static const struct apsd_result *smblib_update_usb_type(struct smb_charger *chg)
 	/* if PD is active, APSD is disabled so won't have a valid result */
 	if (chg->pd_active) {
 		chg->real_charger_type = POWER_SUPPLY_TYPE_USB_PD;
-#ifdef CONFIG_XIAOMI
+#ifdef CONFIG_XIAOMI_SDM660
 		chg->usb_psy_desc.type = POWER_SUPPLY_TYPE_USB_PD;
 #endif
 	} else {
@@ -616,7 +616,7 @@ static const struct apsd_result *smblib_update_usb_type(struct smb_charger *chg)
 		if (!(apsd_result->pst == POWER_SUPPLY_TYPE_USB_FLOAT &&
 			chg->real_charger_type == POWER_SUPPLY_TYPE_USB)) {
 			chg->real_charger_type = apsd_result->pst;
-#ifdef CONFIG_XIAOMI
+#ifdef CONFIG_XIAOMI_SDM660
 			chg->usb_psy_desc.type = apsd_result->pst;
 #endif
 		}
@@ -1411,7 +1411,7 @@ static int smblib_hvdcp_hw_inov_dis_vote_callback(struct votable *votable,
 	struct smb_charger *chg = data;
 	int rc;
 
-#ifndef CONFIG_XIAOMI
+#ifndef CONFIG_XIAOMI_SDM660
 	if (disable) {
 		/*
 		 * the pulse count register get zeroed when autonomous mode is
@@ -1849,7 +1849,7 @@ int smblib_get_prop_batt_status(struct smb_charger *chg,
 	bool usb_online, dc_online, qnovo_en;
 	u8 stat, pt_en_cmd;
 	int rc;
-#ifdef CONFIG_XIAOMI
+#ifdef CONFIG_XIAOMI_SDM660
 	int batt_health;
 #endif
 
@@ -1869,7 +1869,7 @@ int smblib_get_prop_batt_status(struct smb_charger *chg,
 	}
 	dc_online = (bool)pval.intval;
 
-#ifdef CONFIG_XIAOMI
+#ifdef CONFIG_XIAOMI_SDM660
 	rc = smblib_get_prop_batt_health(chg, &pval);
 	if (rc < 0) {
 		smblib_err(chg, "Couldn't get batt health property rc=%d\n", rc);
@@ -1919,9 +1919,10 @@ int smblib_get_prop_batt_status(struct smb_charger *chg,
 		break;
 	}
 
-#ifdef CONFIG_XIAOMI
-	if ((POWER_SUPPLY_HEALTH_WARM == batt_health || POWER_SUPPLY_HEALTH_OVERHEAT == batt_health) &&
-		(val->intval == POWER_SUPPLY_STATUS_FULL)) {
+#ifdef CONFIG_XIAOMI_SDM660
+	if ((POWER_SUPPLY_HEALTH_WARM == batt_health ||
+	     POWER_SUPPLY_HEALTH_OVERHEAT == batt_health) &&
+	    (val->intval == POWER_SUPPLY_STATUS_FULL)) {
 		val->intval = POWER_SUPPLY_STATUS_CHARGING;
 		return 0;
 	}
@@ -2301,7 +2302,9 @@ static int smblib_force_vbus_voltage(struct smb_charger *chg, u8 val)
 	return rc;
 }
 
+#ifdef CONFIG_XIAOMI_WAYNE
 #define MAX_PLUSE_COUNT_ALLOWED 8
+#endif
 
 int smblib_dp_dm(struct smb_charger *chg, int val)
 {
@@ -2310,7 +2313,7 @@ int smblib_dp_dm(struct smb_charger *chg, int val)
 
 	switch (val) {
 	case POWER_SUPPLY_DP_DM_DP_PULSE:
-#ifdef CONFIG_XIAOMI
+#ifdef CONFIG_XIAOMI_WAYNE
 		if (chg->pulse_cnt >= MAX_PLUSE_COUNT_ALLOWED)
 			return rc;
 #endif
@@ -2394,7 +2397,7 @@ int smblib_disable_hw_jeita(struct smb_charger *chg, bool disable)
 	 * Disable h/w base JEITA compensation if s/w JEITA is enabled
 	 */
 	mask = JEITA_EN_COLD_SL_FCV_BIT
-#ifndef CONFIG_XIAOMI
+#ifndef CONFIG_XIAOMI_SDM660
 		| JEITA_EN_HOT_SL_FCV_BIT
 #endif
 		| JEITA_EN_HOT_SL_CCC_BIT
@@ -2566,7 +2569,7 @@ int smblib_get_prop_usb_voltage_max_design(struct smb_charger *chg,
 int smblib_get_prop_usb_voltage_now(struct smb_charger *chg,
 				    union power_supply_propval *val)
 {
-#ifdef CONFIG_XIAOMI
+#ifdef CONFIG_XIAOMI_SDM660
 	int rc = smblib_get_prop_usb_present(chg, val);
 	if (rc < 0 || !val->intval)
 		return rc;
@@ -2831,12 +2834,16 @@ int smblib_get_prop_die_health(struct smb_charger *chg,
 
 #define SDP_CURRENT_UA			500000
 #define CDP_CURRENT_UA			1500000
-#ifdef CONFIG_XIAOMI
+#ifdef CONFIG_XIAOMI_SDM660
 #define DCP_CURRENT_UA			2000000
-#define HVDCP2_CURRENT_UA		1500000
-#define HVDCP_CURRENT_UA		2900000
 #else
 #define DCP_CURRENT_UA			1500000
+#endif
+#ifdef CONFIG_XIAOMI_WAYNE
+#define HVDCP2_CURRENT_UA		1500000
+#define HVDCP_CURRENT_UA		2900000
+#define FLOAT_CURRENT_UA		1000000
+#else
 #define HVDCP_CURRENT_UA		3000000
 #endif
 #define TYPEC_DEFAULT_CURRENT_UA	900000
@@ -2877,8 +2884,6 @@ int smblib_set_prop_pd_current_max(struct smb_charger *chg,
 	return rc;
 }
 
-#define FLOAT_CURRENT_UA		1000000
-
 static int smblib_handle_usb_current(struct smb_charger *chg,
 					int usb_current)
 {
@@ -2891,7 +2896,7 @@ static int smblib_handle_usb_current(struct smb_charger *chg,
 			 * of Rp
 			 */
 			typec_mode = smblib_get_prop_typec_mode(chg);
-#ifdef CONFIG_XIAOMI
+#ifdef CONFIG_XIAOMI_WAYNE
 			rp_ua = FLOAT_CURRENT_UA;
 #else
 			rp_ua = get_rp_based_dcp_current(chg, typec_mode);
@@ -2945,6 +2950,18 @@ int smblib_set_prop_sdp_current_max(struct smb_charger *chg,
 	}
 	return rc;
 }
+
+#ifdef CONFIG_XIAOMI_SDM660
+int smblib_set_prop_rerun_apsd(struct smb_charger *chg,
+			       const union power_supply_propval *val)
+{
+	if (val->intval == 1) {
+		chg->float_rerun_apsd = true;
+		smblib_rerun_apsd(chg);
+	}
+	return 0;
+}
+#endif
 
 int smblib_set_prop_boost_current(struct smb_charger *chg,
 				    const union power_supply_propval *val)
@@ -3425,7 +3442,7 @@ int smblib_get_charge_current(struct smb_charger *chg,
 
 	typec_source_rd = smblib_get_prop_ufp_mode(chg);
 
-#ifdef CONFIG_XIAOMI
+#ifdef CONFIG_XIAOMI_SDM660
 	/* QC 3.0 adapter */
 	if (apsd_result->bit & QC_3P0_BIT) {
 		*total_current_ua = HVDCP_CURRENT_UA;
@@ -3749,6 +3766,9 @@ void smblib_usb_plugin_locked(struct smb_charger *chg)
 	bool vbus_rising;
 	struct smb_irq_data *data;
 	struct storm_watch *wdata;
+#ifdef CONFIG_XIAOMI_SDM660
+	union power_supply_propval pval = { 1 };
+#endif
 
 	rc = smblib_read(chg, USBIN_BASE + INT_RT_STS_OFFSET, &stat);
 	if (rc < 0) {
@@ -3773,6 +3793,12 @@ void smblib_usb_plugin_locked(struct smb_charger *chg)
 		/* Remove FCC_STEPPER 1.5A init vote to allow FCC ramp up */
 		if (chg->fcc_stepper_enable)
 			vote(chg->fcc_votable, FCC_STEPPER_VOTER, false, 0);
+
+#ifdef CONFIG_XIAOMI_SDM660
+		chg->pl_psy = power_supply_get_by_name("parallel");
+		if (chg->pl_psy)
+			power_supply_set_property(chg->pl_psy, POWER_SUPPLY_PROP_INPUT_SUSPEND, &pval);
+#endif
 
 		/* Schedule work to enable parallel charger */
 		vote(chg->awake_votable, PL_DELAY_VOTER, true, 0);
@@ -4074,7 +4100,7 @@ static void smblib_force_legacy_icl(struct smb_charger *chg, int pst)
 		 */
 		if (!is_client_vote_enabled(chg->usb_icl_votable,
 								USB_PSY_VOTER))
-#ifdef CONFIG_XIAOMI
+#ifdef CONFIG_XIAOMI_SDM660
 			vote(chg->usb_icl_votable, USB_PSY_VOTER, true, 500000);
 #else
 			vote(chg->usb_icl_votable, USB_PSY_VOTER, true, 100000);
@@ -4082,13 +4108,13 @@ static void smblib_force_legacy_icl(struct smb_charger *chg, int pst)
 		vote(chg->usb_icl_votable, LEGACY_UNKNOWN_VOTER, false, 0);
 		break;
 	case POWER_SUPPLY_TYPE_USB_CDP:
-#ifdef CONFIG_XIAOMI
+#ifdef CONFIG_XIAOMI_WAYNE
 		vote(chg->usb_icl_votable, USER_VOTER, false, 0);
 #endif
 		vote(chg->usb_icl_votable, LEGACY_UNKNOWN_VOTER, true, 1500000);
 		break;
 	case POWER_SUPPLY_TYPE_USB_DCP:
-#ifdef CONFIG_XIAOMI
+#ifdef CONFIG_XIAOMI_WAYNE
 		vote(chg->usb_icl_votable, USER_VOTER, false, 0);
 #endif
 		typec_mode = smblib_get_prop_typec_mode(chg);
@@ -4100,7 +4126,7 @@ static void smblib_force_legacy_icl(struct smb_charger *chg, int pst)
 		 * limit ICL to 100mA, the USB driver will enumerate to check
 		 * if this is a SDP and appropriately set the current
 		 */
-#ifdef CONFIG_XIAOMI
+#ifdef CONFIG_XIAOMI_WAYNE
 		vote(chg->usb_icl_votable, USER_VOTER, false, 0);
 		vote(chg->usb_icl_votable, LEGACY_UNKNOWN_VOTER, true, 1000000);
 #else
@@ -4108,14 +4134,17 @@ static void smblib_force_legacy_icl(struct smb_charger *chg, int pst)
 #endif
 		break;
 	case POWER_SUPPLY_TYPE_USB_HVDCP:
-#ifdef CONFIG_XIAOMI
+#ifdef CONFIG_XIAOMI_WAYNE
 		vote(chg->usb_icl_votable, USER_VOTER, true, 1500000);
 		break;
 #endif
 	case POWER_SUPPLY_TYPE_USB_HVDCP_3:
-#ifdef CONFIG_XIAOMI
+#ifdef CONFIG_XIAOMI_WAYNE
 		vote(chg->usb_icl_votable, USER_VOTER, false, 0);
-		vote(chg->usb_icl_votable, LEGACY_UNKNOWN_VOTER, true, 2300000);
+		if (is_global_version)
+			vote(chg->usb_icl_votable, LEGACY_UNKNOWN_VOTER, true, 2300000);
+		else
+			vote(chg->usb_icl_votable, LEGACY_UNKNOWN_VOTER, true, 2900000);
 #else
 		vote(chg->usb_icl_votable, LEGACY_UNKNOWN_VOTER, true, 3000000);
 #endif
@@ -4162,6 +4191,9 @@ static void smblib_notify_usb_host(struct smb_charger *chg, bool enable)
 static void smblib_handle_apsd_done(struct smb_charger *chg, bool rising)
 {
 	const struct apsd_result *apsd_result;
+#ifdef CONFIG_XIAOMI_WAYNE
+	union power_supply_propval pval = { 0 };
+	int usb_present = 0, rc = 0;
 
 	if (!rising)
 		return;
@@ -4169,7 +4201,7 @@ static void smblib_handle_apsd_done(struct smb_charger *chg, bool rising)
 	apsd_result = smblib_update_usb_type(chg);
 
 	if (!chg->typec_legacy_valid
-#ifdef CONFIG_XIAOMI
+#ifdef CONFIG_XIAOMI_SDM660
 			|| apsd_result->pst == POWER_SUPPLY_TYPE_USB_HVDCP_3
 #endif
 			)
@@ -4204,7 +4236,28 @@ static void smblib_handle_apsd_done(struct smb_charger *chg, bool rising)
 		   apsd_result->name);
 }
 
-#ifdef CONFIG_XIAOMI
+#ifdef CONFIG_XIAOMI_SDM660
+	if (chg->float_rerun_apsd) {
+		rc = smblib_get_prop_usb_present(chg, &pval);
+		if (rc < 0) {
+			smblib_err(chg, "Couldn't get usb present rc = %d\n", rc);
+			return;
+		}
+		usb_present = pval.intval;
+		if (!usb_present)
+			return;
+		if (apsd_result->bit & QC_2P0_BIT) {
+			pval.intval = 0;
+			smblib_set_prop_pd_active(chg, &pval);
+			chg->float_rerun_apsd = false;
+		} else if (apsd_result->bit & FLOAT_CHARGER_BIT) {
+#ifdef CONFIG_XIAOMI_WAYNE
+			vote(chg->usb_icl_votable, LEGACY_UNKNOWN_VOTER, true, 1000000);
+#endif
+			chg->float_rerun_apsd = false;
+		}
+	}
+
 bool smblib_check_charge_type(struct smb_charger *chg)
 {
 	bool ret = false;
@@ -4212,10 +4265,9 @@ bool smblib_check_charge_type(struct smb_charger *chg)
 	enum power_supply_type real_charger_type = apsd_result->pst;
 
 	smblib_dbg(chg, PR_REGISTER, "real_charger_type = 0x%02x\n", real_charger_type);
-	if (POWER_SUPPLY_TYPE_USB <= real_charger_type && POWER_SUPPLY_TYPE_USB_PD >= real_charger_type)
-	{
+	if (POWER_SUPPLY_TYPE_USB <= real_charger_type &&
+	    POWER_SUPPLY_TYPE_USB_PD >= real_charger_type)
 		ret = true;
-	}
 	return ret;
 }
 #endif
@@ -4239,7 +4291,7 @@ irqreturn_t smblib_handle_usb_source_change(int irq, void *data)
 
 	if ((chg->connector_type == POWER_SUPPLY_CONNECTOR_MICRO_USB)
 			&& (stat & APSD_DTC_STATUS_DONE_BIT)
-#ifdef CONFIG_XIAOMI
+#ifdef CONFIG_XIAOMI_SDM660
 			&& !smblib_check_charge_type(chg)
 #endif
 			&& !chg->uusb_apsd_rerun_done) {
@@ -4329,7 +4381,11 @@ static int typec_try_sink(struct smb_charger *chg)
 	 * give opportunity to the other side to be a SRC,
 	 * for tDRPTRY + Tccdebounce time
 	 */
+#ifdef CONFIG_XIAOMI_SDM660
+	msleep(100);
+#else
 	msleep(120);
+#endif
 
 	rc = smblib_read(chg, TYPE_C_STATUS_4_REG, &stat);
 	if (rc < 0) {
@@ -4406,7 +4462,11 @@ try_wait_src:
 	}
 
 	/* Need to be in this state for tDRPTRY time, 75ms~150ms */
+#ifdef CONFIG_XIAOMI_SDM660
+	msleep(150);
+#else
 	msleep(80);
+#endif
 
 	rc = smblib_read(chg, TYPE_C_STATUS_4_REG, &stat);
 	if (rc < 0) {
@@ -4547,6 +4607,9 @@ static void smblib_handle_typec_removal(struct smb_charger *chg)
 	chg->pd_active = 0;
 	chg->pd_hard_reset = false;
 	chg->typec_legacy_valid = false;
+#ifdef CONFIG_XIAOMI_SDM660
+	chg->float_rerun_apsd = false;
+#endif
 
 	/* write back the default FLOAT charger configuration */
 	rc = smblib_masked_write(chg, USBIN_OPTIONS_2_CFG_REG,

@@ -427,6 +427,9 @@ static enum power_supply_property smb2_usb_props[] = {
 	POWER_SUPPLY_PROP_PD_VOLTAGE_MAX,
 	POWER_SUPPLY_PROP_PD_VOLTAGE_MIN,
 	POWER_SUPPLY_PROP_SDP_CURRENT_MAX,
+#ifdef CONFIG_XIAOMI_SDM660
+	POWER_SUPPLY_PROP_RERUN_APSD,
+#endif
 	POWER_SUPPLY_PROP_CONNECTOR_TYPE,
 	POWER_SUPPLY_PROP_MOISTURE_DETECTED,
 };
@@ -630,6 +633,11 @@ static int smb2_usb_set_prop(struct power_supply *psy,
 	case POWER_SUPPLY_PROP_SDP_CURRENT_MAX:
 		rc = smblib_set_prop_sdp_current_max(chg, val);
 		break;
+#ifdef CONFIG_XIAOMI_SDM660
+	case POWER_SUPPLY_PROP_RERUN_APSD:
+		rc = smblib_set_prop_rerun_apsd(chg, val);
+		break;
+#endif
 	default:
 		pr_err("set prop %d is not supported\n", psp);
 		rc = -EINVAL;
@@ -1066,6 +1074,9 @@ static enum power_supply_property smb2_batt_props[] = {
 	POWER_SUPPLY_PROP_CHARGE_CONTROL_LIMIT_MAX,
 	POWER_SUPPLY_PROP_CHARGE_CONTROL_LIMIT,
 	POWER_SUPPLY_PROP_CHARGE_COUNTER,
+#ifdef CONFIG_XIAOMI_SDM660
+	POWER_SUPPLY_PROP_CHARGING_ENABLED,
+#endif
 	POWER_SUPPLY_PROP_CHARGE_FULL,
 	POWER_SUPPLY_PROP_CHARGE_FULL_DESIGN,
 	POWER_SUPPLY_PROP_TIME_TO_FULL_NOW,
@@ -1082,6 +1093,11 @@ static int smb2_batt_get_prop(struct power_supply *psy,
 	union power_supply_propval pval = {0, };
 
 	switch (psp) {
+#ifdef CONFIG_XIAOMI_SDM660
+	case POWER_SUPPLY_PROP_CHARGING_ENABLED:
+		val->intval = chg->charging_enabled;
+		break;
+#endif
 	case POWER_SUPPLY_PROP_STATUS:
 		rc = smblib_get_prop_batt_status(chg, val);
 		break;
@@ -1152,7 +1168,7 @@ static int smb2_batt_get_prop(struct power_supply *psy,
 					      FG_ESR_VOTER);
 		break;
 	case POWER_SUPPLY_PROP_TECHNOLOGY:
-#ifdef CONFIG_XIAOMI
+#ifdef CONFIG_XIAOMI_SDM660
 		val->intval = POWER_SUPPLY_TECHNOLOGY_LIPO;
 #else
 		val->intval = POWER_SUPPLY_TECHNOLOGY_LION;
@@ -1188,13 +1204,13 @@ static int smb2_batt_get_prop(struct power_supply *psy,
 	case POWER_SUPPLY_PROP_VOLTAGE_NOW:
 	case POWER_SUPPLY_PROP_TEMP:
 	case POWER_SUPPLY_PROP_TIME_TO_FULL_NOW:
-#ifndef CONFIG_XIAOMI
+#ifndef CONFIG_XIAOMI_SDM660
 		rc = smblib_get_prop_from_bms(chg, psp, val);
 		break;
 #endif
 	case POWER_SUPPLY_PROP_CURRENT_NOW:
 		rc = smblib_get_prop_from_bms(chg, psp, val);
-#ifndef CONFIG_XIAOMI
+#ifndef CONFIG_XIAOMI_XIAOMI
 		if (!rc)
 			val->intval *= (-1);
 #endif
@@ -1321,6 +1337,9 @@ static int smb2_batt_prop_is_writeable(struct power_supply *psy,
 	case POWER_SUPPLY_PROP_PARALLEL_DISABLE:
 	case POWER_SUPPLY_PROP_DP_DM:
 	case POWER_SUPPLY_PROP_RERUN_AICL:
+#ifdef CONFIG_XIAOMI_SDM660
+	case POWER_SUPPLY_PROP_CHARGING_ENABLED:
+#endif
 	case POWER_SUPPLY_PROP_INPUT_CURRENT_LIMITED:
 	case POWER_SUPPLY_PROP_STEP_CHARGING_ENABLED:
 	case POWER_SUPPLY_PROP_SW_JEITA_ENABLED:
@@ -1720,15 +1739,18 @@ static int smb2_init_hw(struct smb2 *chip)
 	vote(chg->pd_disallowed_votable_indirect, PD_NOT_SUPPORTED_VOTER,
 			chip->dt.no_pd, 0);
 
-#ifdef CONFIG_XIAOMI
+#ifdef CONFIG_XIAOMI_SDM660
 	/* Operate the QC2.0 in 5V/9V mode i.e. Disable 12V */
 	rc = smblib_masked_write(chg, HVDCP_PULSE_COUNT_MAX_REG,
-								PULSE_COUNT_QC2P0_12V | PULSE_COUNT_QC2P0_9V, PULSE_COUNT_QC2P0_9V);
+				 PULSE_COUNT_QC2P0_12V | PULSE_COUNT_QC2P0_9V,
+				 PULSE_COUNT_QC2P0_9V);
 	if (rc < 0) {
 		dev_err(chg->dev, "Couldn't configure QC2.0 to 9V rc=%d\n", rc);
 		return rc;
 	}
-	/* Operate the QC3.0 to limit vbus to 6.6v*/
+#endif
+#ifdef CONFIG_XIAOMI_WAYNE
+	/* Operate the QC3.0 to limit vbus to 6.6V */
 	rc = smblib_masked_write(chg, HVDCP_PULSE_COUNT_MAX_REG, PULSE_COUNT_QC3P0_MASK, 0x8);
 	if (rc < 0) {
 		dev_err(chg->dev, "Couldn't configure QC3.0 to 6.6V rc=%d\n", rc);
@@ -1901,7 +1923,7 @@ static int smb2_init_hw(struct smb2 *chip)
 		return rc;
 	}
 
-#ifdef CONFIG_XIAOMI
+#ifdef CONFIG_XIAOMI_SDM660
 	rc = vote(chg->chg_disable_votable, DEFAULT_VOTER, true, 0);
 #endif
 
@@ -1933,7 +1955,7 @@ static int smb2_init_hw(struct smb2 *chip)
 		break;
 	}
 
-#ifdef CONFIG_XIAOMI
+#ifdef CONFIG_XIAOMI_SDM660
 	rc = vote(chg->chg_disable_votable, DEFAULT_VOTER, false, 0);
 #endif
 

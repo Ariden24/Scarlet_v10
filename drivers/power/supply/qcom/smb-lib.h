@@ -263,6 +263,9 @@ struct smb_charger {
 	struct power_supply		*usb_main_psy;
 	struct power_supply		*usb_port_psy;
 	enum power_supply_type		real_charger_type;
+#ifdef CONFIG_XIAOMI_SDM660
+	struct power_supply		*pl_psy;
+#endif
 
 	/* notifiers */
 	struct notifier_block	nb;
@@ -324,6 +327,9 @@ struct smb_charger {
 	int			fake_capacity;
 	int			fake_batt_status;
 	bool			step_chg_enabled;
+#ifdef CONFIG_XIAOMI_SDM660
+	int			charging_enabled;
+#endif
 	bool			sw_jeita_enabled;
 	bool			is_hdc;
 	bool			chg_done;
@@ -359,6 +365,9 @@ struct smb_charger {
 	bool			cc2_detach_wa_active;
 	bool			typec_en_dis_active;
 	bool			try_sink_active;
+#ifdef CONFIG_XIAOMI_SDM660
+	bool			float_rerun_apsd;
+#endif
 	int			boost_current_ua;
 	int			temp_speed_reading_count;
 	int			qc2_max_pulses;
@@ -549,6 +558,12 @@ int smblib_set_prop_pr_swap_in_progress(struct smb_charger *chg,
 				const union power_supply_propval *val);
 int smblib_stat_sw_override_cfg(struct smb_charger *chg, bool override);
 void smblib_usb_typec_change(struct smb_charger *chg);
+#ifdef CONFIG_XIAOMI_SDM660
+int smblib_get_prop_battery_full_design(struct smb_charger *chg,
+					union power_supply_propval *val);
+int smblib_set_prop_rerun_apsd(struct smb_charger *chg,
+			       const union power_supply_propval *val);
+#endif
 int smblib_toggle_stat(struct smb_charger *chg, int reset);
 int smblib_force_ufp(struct smb_charger *chg);
 

@@ -747,6 +747,9 @@ static int handle_jeita(struct step_chg_info *chip)
 {
 	union power_supply_propval pval = {0, };
 	int rc = 0, fcc_ua = 0, fv_uv = 0;
+#ifdef CONFIG_XIAOMI_SDM660
+	int temp = 1;
+#endif
 	u64 elapsed_us;
 
 	rc = power_supply_get_property(chip->batt_psy,
@@ -786,6 +789,10 @@ static int handle_jeita(struct step_chg_info *chip)
 		pr_err("Couldn't read %s property rc=%d\n",
 				chip->jeita_fcc_config->param.prop_name, rc);
 		return rc;
+#ifdef CONFIG_XIAOMI_SDM660
+	} else {
+		temp = pval.intval;
+#endif
 	}
 
 	rc = get_val(chip->jeita_fcc_config->fcc_cfg,
