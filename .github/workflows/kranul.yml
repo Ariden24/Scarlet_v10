@@ -22,7 +22,7 @@ jobs:
       id: build
       with:
         arch: arm64
-        compiler: aosp-clang/master/clang-r498229/binutils
+        compiler: proton-clang/master
         defconfig: vendor/whyred-perf_defconfig
         image: Image.gz-dtb
 
