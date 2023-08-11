@@ -8,8 +8,6 @@ jobs:
     steps:
     - name: Checkout kernel source
       uses: actions/checkout@v3
-      with:
-        submodules: recursive
 
     - name: Checkout zipper
       uses: actions/checkout@v3
